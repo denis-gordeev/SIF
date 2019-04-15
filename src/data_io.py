@@ -2,24 +2,30 @@ from __future__ import print_function
 
 import numpy as np
 import pickle
-from tree import tree
+from .tree import tree
+
+
 #from theano import config
 
+
 def getWordmap(textfile):
-    words={}
+    words = dict()
     We = []
-    f = open(textfile,'r')
+    f = open(textfile, 'r')
     lines = f.readlines()
-    for (n,i) in enumerate(lines):
-        i=i.split()
+    # glove format
+    # word1 0.123 0.134 0.532 0.152
+    for (n, i) in enumerate(lines):
+        i = i.split()
         j = 1
-        v = []
+        v = []  # word vector
         while j < len(i):
             v.append(float(i[j]))
             j += 1
-        words[i[0]]=n
+        words[i[0]] = n
         We.append(v)
     return (words, np.array(We))
+
 
 def prepare_data(list_of_seqs):
     lengths = [len(s) for s in list_of_seqs]
@@ -33,7 +39,8 @@ def prepare_data(list_of_seqs):
     x_mask = np.asarray(x_mask, dtype='float32')
     return x, x_mask
 
-def lookupIDX(words,w):
+
+def lookupIDX(words, w):
     w = w.lower()
     if len(w) > 1 and w[0] == '#':
         w = w.replace("#","")
@@ -44,12 +51,15 @@ def lookupIDX(words,w):
     else:
         return len(words) - 1
 
-def getSeq(p1,words):
-    p1 = p1.split()
+
+def getSeq(p1, words):
+    if type(p1) == str:
+        p1 = p1.split()
     X1 = []
     for i in p1:
-        X1.append(lookupIDX(words,i))
+        X1.append(lookupIDX(words, i))
     return X1
+
 
 def getSeqs(p1,p2,words):
     p1 = p1.split()
@@ -61,6 +71,7 @@ def getSeqs(p1,p2,words):
     for i in p2:
         X2.append(lookupIDX(words,i))
     return X1, X2
+
 
 def get_minibatches_idx(n, minibatch_size, shuffle=False):
     idx_list = np.arange(n, dtype="int32")
@@ -189,16 +200,21 @@ def getDataSentiment(batch):
     scores = np.asarray(scores,dtype='float32')
     return (scores,g1x,g1mask)
 
+
 def sentences2idx(sentences, words):
     """
-    Given a list of sentences, output array of word indices that can be fed into the algorithms.
+    Given a list of sentences, output array of word indices
+    that can be fed into the algorithms.
     :param sentences: a list of sentences
     :param words: a dictionary, words['str'] is the indices of the word 'str'
-    :return: x1, m1. x1[i, :] is the word indices in sentence i, m1[i,:] is the mask for sentence i (0 means no word at the location)
+    :return: x1, m1
+        x1[i, :] is the word indices in sentence i,
+        m1[i,:] is the mask for sentence i (0 means no word at the location)
     """
+    seq1 = []
     for i in sentences:
-        seq1.append(getSeq(i,words))
-    x1,m1 = prepare_data(seq1)
+        seq1.append(getSeq(i, words))
+    x1, m1 = prepare_data(seq1)
     return x1, m1
 
 
@@ -221,6 +237,7 @@ def sentiment2idx(sentiment_file, words):
         golds.append(score)
     x1,m1 = prepare_data(seq1)
     return x1, m1, golds
+
 
 def sim2idx(sim_file, words):
     """
@@ -245,6 +262,7 @@ def sim2idx(sim_file, words):
     x2,m2 = prepare_data(seq2)
     return x1, m1, x2, m2, golds
 
+
 def entailment2idx(sim_file, words):
     """
     Read similarity data file, output array of word indices that can be fed into the algorithms.
@@ -268,6 +286,7 @@ def entailment2idx(sim_file, words):
     x2,m2 = prepare_data(seq2)
     return x1, m1, x2, m2, golds
 
+
 def getWordWeight(weightfile, a=1e-3):
     if a <=0: # when the parameter makes no sense, use unweighted
         a = 1.0
@@ -289,6 +308,7 @@ def getWordWeight(weightfile, a=1e-3):
         word2weight[key] = a / (a + value/N)
     return word2weight
 
+
 def getWeight(words, word2weight):
     weight4ind = {}
     for word, ind in words.iteritems():
@@ -298,14 +318,16 @@ def getWeight(words, word2weight):
             weight4ind[ind] = 1.0
     return weight4ind
 
+
 def seq2weight(seq, mask, weight4ind):
     weight = np.zeros(seq.shape).astype('float32')
-    for i in xrange(seq.shape[0]):
-        for j in xrange(seq.shape[1]):
-            if mask[i,j] > 0 and seq[i,j] >= 0:
-                weight[i,j] = weight4ind[seq[i,j]]
+    for i in range(seq.shape[0]):
+        for j in range(seq.shape[1]):
+            if mask[i, j] > 0 and seq[i, j] >= 0:
+                weight[i, j] = weight4ind[seq[i, j]]
     weight = np.asarray(weight, dtype='float32')
     return weight
+
 
 def getIDFWeight(wordfile, save_file=''):
     def getDataFromFile(f, words):
